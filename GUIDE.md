@@ -306,4 +306,4 @@ Bon entraînement ! 🎨💽
 
 ---
 
-*Dataset Builder v3 — Created June 2026 by Deckie pour Mathieu*
+*Dataset Builder v3 — Created by Sinclou*
