@@ -1,100 +1,59 @@
-# 📖 Dataset Builder v3 — Film Mode
+# 📖 Guide d'utilisation — Dataset Builder v3 (Film Mode)
 
-> Pipeline 100% local pour créer des datasets LoRA de style depuis des films.  
-> Conçu pour LTX-Video / AI-Toolkit. Fonctionne sur toute machine Linux avec GPU NVIDIA.
+> Pipeline 100% local pour créer des datasets LoRA de style depuis des films.
+> Cible : LTX-Video 2.3, AI-Toolkit, RTX 3090 24 GB VRAM.
 
 ---
 
-## 🎯 À quoi ça sert
+## 🎯 À qui ça sert
 
-Tu veux entraîner un **LoRA de style** à partir d'un film :
+Tu veux entraîner un **LoRA de style** pour LTX-Video à partir d'un (ou plusieurs) film(s) :
 - Esthétique cinéma années 70
 - Néon noir / cyberpunk
 - Style d'un réalisateur (Wong Kar-wai, Tarkovski, Refn…)
 - Palette / grain / lumière particuliers
+- N'importe quel "look" cohérent qui se voit sur des images fixes
 
-**L'outil produit un dataset prêt pour AI-Toolkit** : pour chaque image extraite, un fichier `.jpg` + un fichier `.txt` avec sa caption en anglais — exactement ce qu'AI-Toolkit attend pour un LoRA LTX-Video en mode image (`frames=1`).
+**Cet outil sort un dataset prêt pour AI-Toolkit** : pour chaque image extraite, tu auras :
+- `image_001.jpg` — la frame
+- `image_001.txt` — sa caption descriptive en anglais
 
----
-
-## 🖥️ Prérequis
-
-| Composant | Minimum | Recommandé |
-|---|---|---|
-| GPU NVIDIA | 12 GB VRAM | 24 GB (RTX 3090 / 4090) |
-| RAM | 16 GB | 32 GB |
-| Stockage libre | 20 GB | 50 GB+ |
-| Python | 3.10 | 3.11 |
-| OS | Ubuntu 22.04+ | Ubuntu 22.04 / 24.04 |
-
-**Dépendances système :**
-```bash
-sudo apt install ffmpeg python3-venv python3-pip
-```
-
-> ⚠️ **Carte AMD / Intel Arc / CPU seul** : JoyCaption nécessite CUDA. La partie CLIP peut tourner sur CPU mais sera lente. Pour l'instant, GPU NVIDIA requis.
+C'est exactement ce que **AI-Toolkit (Ostris)** attend pour entraîner un LoRA LTX 2.3 en mode image (`frames=1`).
 
 ---
 
-## 🚀 Installation
+## 🚀 Lancement
 
-```bash
-# 1. Clone ou copie le dossier
-git clone <url-du-repo>
-cd dataset-builder-public
+Double-clic sur **`~/Bureau/Dataset-Builder-v3-Film.sh`**
 
-# 2. Crée un environnement virtuel
-python3 -m venv venv
-source venv/bin/activate
+→ Un terminal s'ouvre, Flask démarre, le navigateur ouvre **http://localhost:7862**.
 
-# 3. Installe les dépendances
-pip install -r requirements.txt
-```
-
-> **Premier lancement :** ~15 GB de modèles se téléchargent automatiquement depuis Hugging Face (JoyCaption Beta One + CLIP ViT-L). Compte 10-30 min selon ta connexion. C'est **une seule fois** — ils sont ensuite en cache dans `./model_cache/`.
+> **Premier run :** ~15 GB de modèles HF se téléchargent automatiquement quand tu lances la première analyse (JoyCaption Beta + CLIP ViT-L). Compte 10-15 min de download la première fois selon ta connexion. **C'est une fois pour toutes**, les modèles sont ensuite en cache local.
 
 ---
 
-## ▶️ Lancement
-
-```bash
-# Lancement simple (output par défaut : ~/datasets)
-source venv/bin/activate
-python dataset_builder_v3.py
-
-# Avec un dossier d'export personnalisé
-python dataset_builder_v3.py --output /mon/dossier/datasets
-
-# Ou via variable d'environnement
-DATASET_OUTPUT=/mon/dossier/datasets python dataset_builder_v3.py
-```
-
-Le terminal affiche l'URL — ouvre **http://localhost:7862** dans ton navigateur.
-
----
-
-## 📋 Pipeline interne
+## 📋 Pipeline interne (ce qui se passe quand tu lances "ANALYSER")
 
 ```
 ┌────────────────────┐
-│ 1. PYSCENEDETECT   │ Détecte les changements de plan (~30s pour 90 min)
-└──────────┬─────────┘ → 200-400 scènes typiquement
+│ 1. PYSCENEDETECT   │ Détecte les changements de plan (~30s pour un film 90 min)
+└──────────┬─────────┘ → Sortie : 200-400 scènes typiquement
            ↓
 ┌────────────────────┐
-│ 2. EXTRACTION      │ ffmpeg extrait N frames par scène (configurable)
-└──────────┬─────────┘ → On garde ~4× la cible
+│ 2. EXTRACTION      │ ffmpeg sort N frames par scène (configurable 1-10)
+└──────────┬─────────┘ → On garde ~4× la cible selon le nombre de frames/scène
            ↓
 ┌────────────────────┐
-│ 3. FILTRES QUALITÉ │ Vire flou, transitions, noir total, surex
-└──────────┬─────────┘
+│ 3. FILTRES QUALITÉ │ OpenCV : variance Laplacien (netteté) + luminosité
+└──────────┬─────────┘ → Vire flou, transitions, noir total, surex
            ↓
 ┌────────────────────┐
 │ 4. CLIP SCORING    │ ViT-L-14 score chaque frame vs tes catégories
-└──────────┬─────────┘ → Frames classées par pertinence sémantique
+└──────────┬─────────┘ → "street scene at night" → top 50 frames ranked
            ↓
 ┌────────────────────┐
-│ 5. JOYCAPTION      │ VLM dédié au captioning pour Diffusion training
-└──────────┬─────────┘ → Caption en anglais par frame (30-50 mots)
+│ 5. JOYCAPTION      │ VLM dédié au captioning training Diffusion
+└──────────┬─────────┘ → Caption training par frame (30-50 mots EN)
            ↓
 ┌────────────────────┐
 │ 6. EXPORT ZIP      │ jpg + txt + dataset_info.json
@@ -103,162 +62,204 @@ Le terminal affiche l'URL — ouvre **http://localhost:7862** dans ton navigateu
 
 ---
 
-## ✅ Utilisation pas à pas
+## ✅ La bonne marche à suivre (pas à pas)
 
 ### Étape 1 — Choisis ton film source
 
 **Bons candidats :**
-- Films au style **visuellement cohérent** du début à la fin
+- Films au style **visuellement cohérent du début à la fin** (Refn, Lynch, Wong Kar-wai, Villeneuve)
 - Durée ≥ 30 min (besoin de variété de scènes)
-- Qualité ≥ 720p
+- Qualité ≥ 720p (sinon les captions seront molles)
 
 **Mauvais candidats :**
-- Documentaires avec interviews (style change trop souvent)
-- Films d'archives mixées
-- Sources très compressées (mosaïque, blocky)
+- Documentaires avec interviews (style change tout le temps)
+- Films avec beaucoup d'archives mixées
+- Compressions trop fortes (mosaïque, blocky)
 
-> 💡 Pour un style très défini, combine plusieurs films du **même chef-opérateur ou réalisateur** et fusionne les exports avant training.
+> 💡 **Astuce** : si tu veux un style très défini, prends plusieurs films du **même chef-op** ou **réalisateur**, lance le pipeline sur chacun, puis fusionne les ZIP exports avant training.
 
-### Étape 2 — Nombre d'images cible
+### Étape 2 — Définis ton nombre d'images cible
 
-| Type de LoRA | Images recommandées |
-|---|---|
-| Style visuel pur (palette, lumière) | **20-30** |
-| Style + composition spécifique | **30-50** |
-| Style très subtil / nuancé | **50-80** |
+Le slider va jusqu'à **400 images**. Le bon nombre dépend de ton usage et du nombre de frames par scène choisi.
 
-> 25 images parfaitement choisies > 100 images médiocres. En cas de doute, vise **30**.
+| Type de LoRA | 1 frame/scène | 3 frames/scène | 5 frames/scène |
+|---|---|---|---|
+| Style visuel pur (palette, lumière) | **25-40** | **75-120** | **125-200** |
+| Style + composition spécifique | **40-80** | **120-240** | **200-400** |
+| Style très subtil / multi-aspects | **80-150** | **240-400** | **400** |
 
-### Étape 3 — Frames par scène
+> ⚠️ **Attention avec les frames par scène multiples.** Si tu mets 3 frames/scène et que tu vises seulement 30 images, l'outil ne va explorer que ~10 scènes — très peu de diversité. Multiplie ta cible par le nombre de frames/scène pour couvrir autant de séquences qu'en mode 1 frame.
+>
+> Exemple : 30 images × 3 frames/scène = vise **90 images** pour une couverture équivalente.
 
-Nouveau paramètre : combien de frames extraire **par scène détectée**.
+### Étape 3 — Définis tes catégories (CLIP filter) — ÉTAPE LA PLUS IMPORTANTE
 
-| Valeur | Usage |
-|---|---|
-| 1 | Rapide — prend le centre de chaque scène |
-| 3 | Recommandé — début / milieu / fin de scène |
-| 5 | Panel complet — bonne couverture de chaque plan |
-| 10 | Très dense — utile pour scènes longues et statiques |
-
-### Étape 4 — Catégories CLIP (étape clé)
-
-C'est ce qui pilote la sélection sémantique des frames.
+**C'est là que tu décides ce que CLIP va chercher dans le film.** Sans catégories, l'outil prendra des frames au hasard ; avec, il cible.
 
 **Stratégie A — Variété équilibrée** (recommandé pour démarrer)
 ```
-atmospheric street scene
-close-up of a face
-wide landscape shot
-interior scene with mood lighting
-two people in conversation
+• atmospheric street scene
+• close-up of a face
+• wide landscape shot
+• interior scene with mood lighting
+• two people in conversation
 ```
+→ CLIP va piocher dans **plusieurs registres** = dataset diversifié.
 
-**Stratégie B — Style très ciblé**
+**Stratégie B — Style très focus** (tu sais ce que tu veux)
 ```
-neon-lit street at night
-rain on windows
-cinematic close-up portrait
-warm tungsten lighting
+• neon-lit street at night
+• rain on windows
+• cinematic close-up portrait
+• warm tungsten lighting
 ```
+→ CLIP va piocher **uniquement les scènes qui matchent**. Plus risqué : si le film n'a pas assez de ces moments, tu auras des frames de qualité moyenne.
 
-**Stratégie C — Aucune catégorie** → sampling temporel uniforme (utile si le film est homogène de bout en bout)
+**Stratégie C — Pas de catégorie** (laisser l'outil sampler uniformément)
+→ Utile si le film est **homogène** stylistiquement de bout en bout. Tu auras une frame par segment temporel.
 
-**Règles :**
+**Règles d'écriture des catégories :**
 - ✅ En **anglais** (CLIP est entraîné dessus)
 - ✅ Phrases descriptives courtes (4-8 mots)
-- ❌ Pas de noms propres
-- ❌ Pas d'émotions abstraites (sauf si elles se voient : "moody dark scene" OK)
+- ✅ Décris l'image, pas l'émotion (sauf si visuel : "moody dark scene" OK)
+- ❌ Pas de noms propres (CLIP ne connaît pas ton réalisateur)
+- ❌ Pas trop spécifique au film ("the protagonist running") — CLIP ne sait pas qui est protagonist
 
-### Étape 5 — Filtres qualité
+**Presets disponibles** (boutons rapides dans l'UI) : rue, portrait, paysage, intérieur, néon, dialogue, action, atmosphère.
 
-- **Éviter floues** : recommandé — élimine transitions et motion blur
-- **Éviter trop sombres/claires** : recommandé — vire fondus au noir et flashes
-- **Captionner immédiatement** : laisse coché pour tout générer en une passe. Décoche si tu veux d'abord présélectionner visuellement avant de lancer JoyCaption
+### Étape 4 — Filtres qualité
 
-### Étape 6 — Analyse
+- ☑ **Éviter floues** : recommandé. Élimine les transitions, motion blur extrême.
+- ☑ **Éviter trop sombres/claires** : recommandé. Vire les fondus au noir, les flashes.
+- ☑ **Captionner immédiatement** : laisser coché si tu veux tout en un coup. Si décoché, JoyCaption ne sera appelé qu'à la demande (utile pour gros datasets où tu veux d'abord présélectionner visuellement avant de payer le coût compute).
 
-Clique **▶ ANALYSER LE FILM**. Le panneau de progression t'indique où on en est.
+### Étape 4b — Taille de sortie (résolution du ZIP exporté)
 
-**Timing indicatif sur RTX 3090 pour un film de 90 min :**
+Ce paramètre s'applique **uniquement à l'export** — la prévisualisation dans la grille reste toujours en haute résolution. Tu peux le changer sans relancer l'analyse.
 
+| Option | Résolution | Usage |
+|---|---|---|
+| **Originale** | Taille native du film | Si tu veux contrôler le resize toi-même |
+| **LTX 2.3** *(défaut)* | 768×512 (paysage) / 512×768 (portrait) | Training LTX-Video 2.3 avec AI-Toolkit |
+| **1024×1024 crop centré** | Carré recadré depuis le centre | SDXL, Flux, Illustrious, ou LoRA carré |
+| **1920×1080 letterbox** | Full HD, bandes noires si besoin | Préservation qualité, usage hors training |
+
+> 💡 Le mode LTX 2.3 détecte automatiquement l'orientation (paysage ou portrait) et choisit la bonne résolution.
+
+### Étape 5 — Lance l'analyse
+
+Clique **▶ ANALYSER LE FILM**.
+
+**Timing typique sur ta 3090 pour un film de 90 min :**
 | Étape | Durée |
 |---|---|
 | PySceneDetect | ~30-60s |
-| Extraction frames | ~1-2 min |
+| Extraction frames ffmpeg | ~1 min |
 | Filtres qualité | ~5s |
 | CLIP scoring (~120 frames) | ~30s |
-| JoyCaption (~45 frames) | ~3-5 min |
-| **Total** | **~5-8 min** |
+| JoyCaption captioning (~45 frames) | ~3-5 min |
+| **Total** | **~5-7 min** |
 
-### Étape 7 — Triage dans la grille
+Le panneau de progression t'indique où on en est.
 
-Une fois fini, la grille affiche chaque frame avec son score CLIP, son timestamp, et sa caption.
+### Étape 6 — Triage dans la grille
 
-1. **Parcours visuellement** — décoche ce qui ne te convient pas
-2. **Édite les captions** si JoyCaption est à côté (clic sur ✎)
-3. **Re-caption** une frame si besoin (clic sur 🔄)
+Une fois fini, **la grille s'affiche** avec :
+- Vignette de chaque frame
+- Score CLIP (plus c'est haut, mieux ça matche tes catégories)
+- Timestamp dans le film
+- Caption générée
+- État coché/décoché (les top N sont auto-cochés selon ta cible)
 
-> Un caption inexact nuit à l'apprentissage. Mieux vaut 30 bons que 50 approximatifs.
+**Ce que tu fais :**
+1. **Parcours la grille visuellement** — décoche les frames qui ne te plaisent pas
+2. **Coche-en d'autres** si tu vois des frames intéressantes qui n'étaient pas dans le top auto
+3. **Édite les captions** qui sont à côté de la plaque (clic sur ✎)
+4. **Re-caption** une frame si la première tentative de JoyCaption est bizarre (clic sur 🔄)
 
-### Étape 8 — Export
+> 💡 Un caption mal foutu plombe l'apprentissage de cette image. Mieux vaut **30 captions bons que 50 captions moyens.**
 
-Clique **▶ EXPORT**. Tu obtiens un ZIP :
+**Les boutons rapides :**
+- "Tout sélectionner" / "Tout désélectionner"
+- "Top N" — re-sélectionne les N premiers par score CLIP
 
+### Étape 7 — Export
+
+Clique **▶ EXPORT**. Un ZIP se télécharge avec :
 ```
 NomDuFilm_001.jpg
 NomDuFilm_001.txt
 NomDuFilm_002.jpg
 NomDuFilm_002.txt
 ...
-dataset_info.json
+dataset_info.json   ← métadonnées complètes (timestamps, scores, etc.)
 ```
 
-→ Décompresse directement dans ton dossier AI-Toolkit.
+→ **Décompresse direct dans le dossier dataset de AI-Toolkit.**
 
 ---
 
-## 🔧 Gestion de la VRAM
+## 🔧 Gestion de la VRAM (important sur 3090)
 
-JoyCaption charge ~12 GB en mémoire GPU. Si une autre app GPU tourne en parallèle (ComfyUI, autre inférence) :
-- Ferme-la avant l'analyse, **ou**
-- Clique sur **"⏏ Décharger VRAM"** entre deux analyses pour libérer
+**JoyCaption mange ~12 GB**, CLIP ~1 GB. Ta 3090 a 24 GB.
+
+**Si ComfyUI tourne en parallèle :**
+- ComfyUI prend ~12 GB → conflit possible avec JoyCaption
+- **Solutions :**
+  1. Ferme ComfyUI avant l'analyse (le plus simple)
+  2. OU clique sur **"⏏ Décharger VRAM"** entre deux analyses pour libérer
+  3. OU laisse ComfyUI tourner et accepte un swap CPU plus lent
+
+**Bonne pratique :** lance le builder, fais ton analyse, ferme l'app (le venv libère la VRAM). Tu peux ensuite relancer ComfyUI sans problème.
 
 ---
 
 ## 📦 Workflow complet jusqu'au LoRA
 
 ```
-1. Dataset Builder v3  → ZIP (jpg + txt)
+1. Builder v3                  → Dataset ZIP (jpg + txt)
    ↓
 2. Décompresse dans AI-Toolkit/datasets/mon_style/
    ↓
-3. Config AI-Toolkit :
-   model: LTX-Video 2.3 (13B)
-   frames: 1             ← mode image
-   resolution: 512x512 ou 768x512
-   rank: 32 (style) ou 16 (rapide)
-   steps: 1500-2500
-   learning_rate: 1e-4
+3. AI-Toolkit config :
+   - model: LTX-Video 2.3 (13B)
+   - frames: 1                  ← MODE IMAGE
+   - resolution: 512x512 ou 768x512
+   - rank: 32 (style) ou 16 (rapide)
+   - steps: 1500-2500
+   - learning_rate: 1e-4
+   - low VRAM tricks: ON (layer offload, cached latents)
    ↓
-4. Training ~3-6h sur 3090 (2000 steps)
+4. Train sur la 3090           → ~3-6h pour 2000 steps
    ↓
-5. .safetensors → plug dans ComfyUI ou autre
+5. .safetensors LoRA           → tu plug dans ComfyUI
    ↓
-6. Test : "in the style of <ton-trigger-word>"
+6. Test : "in the style of <mon-mot-cle>"
 ```
 
 ---
 
-## 🎓 Conseils
+## 🎓 Trucs de pro
 
-**Pour un style cohérent**  
-Vise des scènes de même registre (toutes extérieurs nuit, ou toutes intérieurs jour). Mélanger des atmosphères très différentes dilue le LoRA.
+### Pour un style cohérent
+- Vise des **scènes de même registre** (toutes des extérieurs nuit, ou toutes des intérieurs jour)
+- Évite de mélanger des scènes très contrastées (jour ensoleillé + nuit néon → le LoRA va se perdre)
 
-**Pour les captions**  
-Ajoute un **trigger word unique** au début de chaque `.txt` (ex: `monstyle_`) sur tous les fichiers après export. C'est ce mot qui invoque le LoRA en génération.
+### Pour les captions
+- Re-lis les captions de JoyCaption après l'export — il est bon mais pas infaillible
+- **Ajoute manuellement** un mot-clé unique en début de caption (ex: "wkw_style") sur TOUS les fichiers .txt → c'est ton trigger word pour invoquer le LoRA
+- Ex de caption finale : `wkw_style, a close-up portrait bathed in warm tungsten light, shallow depth of field, rich amber tones, cinematic 35mm look`
 
-**Pour multi-films**  
-Lance le builder sur chaque film séparément, fusionne les ZIP dans un dossier commun, puis entraîne sur le dataset combiné.
+### Pour multi-films (même style)
+1. Lance le builder sur chaque film séparément
+2. Fusionne les ZIP extracts dans un seul dossier
+3. Renumérote ou laisse tel quel (les noms sont uniques)
+4. Train sur le dataset combiné
+
+### Pour itérer
+- Lance une 1ʳᵉ analyse, regarde la grille → ajuste tes catégories si le résultat ne te plaît pas
+- Relance avec d'autres prompts CLIP
+- Les modèles restent en cache, donc c'est rapide
 
 ---
 
@@ -266,42 +267,43 @@ Lance le builder sur chaque film séparément, fusionne les ZIP dans un dossier 
 
 | Problème | Cause probable | Solution |
 |---|---|---|
-| **Crash CUDA OOM** | Une autre app occupe la VRAM | Ferme-la, clique "⏏ Décharger VRAM" |
-| **Téléchargement bloqué** | Rate limit HF ou réseau | Relance l'app, ça reprend |
-| **Frames toutes floues** | Source trop compressée | Désactive le filtre flou, vérifie la qualité source |
-| **Captions vides** | JoyCaption a planté | Re-caption via le bouton 🔄 |
-| **Aucune frame ne match** | Catégories CLIP trop spécifiques | Élargis les catégories ou supprime-les |
-| **Page blanche au démarrage** | Port 7862 déjà utilisé | Lance avec `--port 7863` |
+| **Crash CUDA OOM** | ComfyUI prend la VRAM | Ferme ComfyUI, clique "⏏ Décharger VRAM" |
+| **Téléchargement modèles bloqué** | HF rate limit ou réseau | Patience, ça reprend. Re-lance si vraiment bloqué |
+| **Frames toutes floues** | Vidéo source compressée | Désactive le filtre flou, vérifie la qualité source |
+| **Captions vides/courtes** | JoyCaption a planté | Re-caption à la main via le bouton 🔄 |
+| **Aucune frame ne match** | Catégories CLIP trop spécifiques | Élargis les catégories, ou supprime-les |
+| **Le terminal se ferme tout seul** | Crash Python | Lance via terminal manuellement : `cd ~/Outils/dataset-builder-v3 && ./venv/bin/python dataset_builder_v3.py` |
 
 ---
 
-## 📁 Structure du projet
+## 📁 Où sont les fichiers
 
 ```
-dataset-builder-public/
-├── dataset_builder_v3.py   ← application Flask
-├── index.html              ← interface web
-├── requirements.txt        ← dépendances Python
-├── GUIDE.md                ← ce fichier
-└── model_cache/            ← créé au 1er run (~15 GB)
-```
+~/Outils/dataset-builder-v3/
+├── dataset_builder_v3.py     ← l'app
+├── venv/                     ← python + libs (5.4 GB)
+├── model_cache/              ← modèles HF téléchargés (~15 GB après 1er run)
+└── GUIDE.md                  ← ce fichier
 
-**Dossier de travail temporaire** : `/tmp/dataset_builder_v3/` (nettoyé au reboot)  
-**Dossier d'export** : `~/datasets/` par défaut (configurable via `--output`)
+~/Bureau/Dataset-Builder-v3-Film.sh   ← launcher (double-clic)
+
+/tmp/dataset_builder_v3/<job_id>/      ← workdir temporaire (auto-clean au reboot)
+```
 
 ---
 
-## ✅ Checklist avant de lancer
+## 🎬 Récap visuel — checklist avant de lancer
 
-- [ ] GPU NVIDIA avec ≥ 12 GB VRAM disponible
-- [ ] ffmpeg installé (`ffmpeg -version`)
-- [ ] Venv activé (`source venv/bin/activate`)
-- [ ] Film source choisi (cohérent, ≥ 30 min, ≥ 720p)
-- [ ] Nombre cible défini (commence par 30)
-- [ ] 3-5 catégories CLIP en anglais
+- [ ] Film source choisi (cohérent stylistiquement, ≥ 30 min, ≥ 720p)
+- [ ] ComfyUI fermé (ou prêt à libérer la VRAM)
+- [ ] Nombre cible défini (30 en 1 frame/scène, multiplier si plus de frames/scène)
+- [ ] 3-5 catégories CLIP en anglais ajoutées
 - [ ] Filtres qualité activés
+- [ ] Captionning immédiat coché
 - [ ] **▶ ANALYSER**
 
+Bon entraînement ! 🎨💽
+
 ---
 
-*Dataset Builder v3 — open source, contributions bienvenues.*
+*Dataset Builder v3 — Created June 2026 by Deckie pour Mathieu*

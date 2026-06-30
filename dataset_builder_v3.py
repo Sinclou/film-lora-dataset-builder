@@ -42,16 +42,8 @@ MOUNTS_DIR.mkdir(exist_ok=True)
 ACTIVE_MOUNTS = {}  # host_name -> mount_path
 MOUNTS_LOCK = threading.Lock()
 
-# 💾 Destination des datasets exportés — configurable via variable d'env ou argument CLI
-# Priorité : --output <dossier> > variable d'env DATASET_OUTPUT > dossier par défaut ~/datasets
-import argparse as _argparse
-_parser = _argparse.ArgumentParser(add_help=False)
-_parser.add_argument("--output", default=None)
-_args, _ = _parser.parse_known_args()
-_default_output = Path.home() / "datasets"
-LORA_MAKER_DATASETS = Path(
-    _args.output or os.environ.get("DATASET_OUTPUT", str(_default_output))
-)
+# 💾 Destination principale pour les datasets exportés : RENDERMAT/LORA MAKER/datasets
+LORA_MAKER_DATASETS = Path("/media/sinclu/RENDERMAT/LORA MAKER/datasets")
 
 # Cache des modèles en mémoire (loaded on demand, unload sur trigger)
 MODELS = {
@@ -281,6 +273,48 @@ def caption_frame(frame_path, system_prompt=None):
     out = out[:, inputs["input_ids"].shape[1]:]
     caption = processor.tokenizer.decode(out[0], skip_special_tokens=True).strip()
     return caption
+
+
+def resize_frame(img_path, mode):
+    """Redimensionne / recadre une image selon le mode choisi.
+    Modes : original | ltx23 | square1024 | hd1080
+    """
+    if mode == "original":
+        return
+    from PIL import Image
+    img = Image.open(img_path).convert("RGB")
+    w, h = img.size
+
+    if mode == "ltx23":
+        # LTX-Video 2.3 : 768×512 (paysage) ou 512×768 (portrait)
+        if w >= h:
+            target_w, target_h = 768, 512
+        else:
+            target_w, target_h = 512, 768
+        img = img.resize((target_w, target_h), Image.LANCZOS)
+
+    elif mode == "square1024":
+        # Crop carré centré puis resize 1024×1024
+        min_dim = min(w, h)
+        left = (w - min_dim) // 2
+        top  = (h - min_dim) // 2
+        img = img.crop((left, top, left + min_dim, top + min_dim))
+        img = img.resize((1024, 1024), Image.LANCZOS)
+
+    elif mode == "hd1080":
+        # Resize 1920×1080, letterbox si l'aspect ratio diffère
+        target_w, target_h = 1920, 1080
+        ratio = min(target_w / w, target_h / h)
+        new_w = int(w * ratio)
+        new_h = int(h * ratio)
+        resized = img.resize((new_w, new_h), Image.LANCZOS)
+        canvas = Image.new("RGB", (target_w, target_h), (0, 0, 0))
+        offset_x = (target_w - new_w) // 2
+        offset_y = (target_h - new_h) // 2
+        canvas.paste(resized, (offset_x, offset_y))
+        img = canvas
+
+    img.save(img_path, "JPEG", quality=95)
 
 # ── Job runner (analyse en background) ───────────────────────────────────────
 def run_analysis_job(job_id, video_path, target_count, categories, quality_filters, caption_now, frames_per_scene=1):
@@ -696,11 +730,21 @@ def export():
     if not selected:
         return jsonify({"error": "Aucune frame sélectionnée"}), 400
 
-    out_zip = WORK_DIR / job_id / "dataset.zip"
-    with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        for i, f in enumerate(selected):
-            name = f"{base}_{i:03d}"
-            zf.write(f["path"], f"{name}.jpg")
+    output_size = data.get("output_size", "original")
+
+    import shutil as _shutil, tempfile as _tempfile
+    tmp_dir = Path(_tempfile.mkdtemp())
+    try:
+        out_zip = WORK_DIR / job_id / "dataset.zip"
+        with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            for i, f in enumerate(selected):
+                name = f"{base}_{i:03d}"
+                # Copie dans tmp pour ne pas modifier l'original
+                tmp_img = tmp_dir / f"{name}.jpg"
+                _shutil.copy2(f["path"], tmp_img)
+                if output_size != "original":
+                    resize_frame(str(tmp_img), output_size)
+                zf.write(str(tmp_img), f"{name}.jpg")
             caption = (f.get("caption") or "").strip()
             if trigger_word and caption:
                 if not caption.lower().startswith(trigger_word.lower() + ","):
@@ -726,6 +770,8 @@ def export():
             } for i, f in enumerate(selected)],
         }
         zf.writestr("dataset_info.json", json.dumps(meta, indent=2))
+    finally:
+        _shutil.rmtree(tmp_dir, ignore_errors=True)
     return send_file(str(out_zip), as_attachment=True,
                      download_name=f"{base}.zip", mimetype="application/zip")
 
@@ -1508,31 +1554,19 @@ async function unloadModels() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    _parser.add_argument("--port", type=int, default=7862)
-    _parser.add_argument("--host", default="127.0.0.1",
-                         help="0.0.0.0 pour accès réseau local")
-    _parser.add_argument("--no-browser", action="store_true",
-                         help="Ne pas ouvrir le navigateur automatiquement")
-    _args, _ = _parser.parse_known_args()
-
-    port = _args.port
-    host = _args.host
+    port = 7862
     url = f"http://localhost:{port}"
-    output_display = str(LORA_MAKER_DATASETS)
-
     print(f"""
 ╔══════════════════════════════════════════════════════════╗
-║  Dataset Builder v3 — Film Mode                          ║
+║  Dataset Builder v3 — Film Mode (LOCAL)                  ║
 ╠══════════════════════════════════════════════════════════╣
 ║  Interface : {url:<44}║
 ║  Pipeline  : PySceneDetect → CLIP → JoyCaption           ║
 ║  Cache     : {str(CACHE_DIR)[:44]:<44}║
-║  Export    : {output_display[:44]:<44}║
 ║                                                          ║
 ║  Premier run = télécharge ~15 GB de modèles (HF)         ║
-║  Options   : --port N  --output /dossier  --no-browser   ║
+║  Tu peux fermer ComfyUI pour libérer la VRAM             ║
 ╚══════════════════════════════════════════════════════════╝
 """)
-    if not _args.no_browser:
-        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    app.run(host=host, port=port, debug=False, threaded=True)
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)

@@ -432,9 +432,20 @@ for f in *.txt; do sed -i '1s/^/mon_style, /' "$f"; done</div>
       </div>
 
       <div class="field">
+        <div class="field-label"><span class="field-name">Taille de sortie</span><span class="field-hint">résolution du ZIP exporté</span></div>
+        <select id="f-output_size" style="width:100%;padding:6px 8px;background:var(--bg2,#1e1e2e);color:var(--fg,#cdd6f4);border:1px solid var(--border,#45475a);border-radius:6px;cursor:pointer;font-size:13px" oninput="sync()">
+          <option value="original">Originale — taille native du film</option>
+          <option value="ltx23" selected>LTX 2.3 — 768×512 / 512×768</option>
+          <option value="square1024">1024×1024 — crop centré carré</option>
+          <option value="hd1080">1920×1080 — HD letterbox</option>
+        </select>
+        <div style="font-size:10px;color:var(--muted,#6c7086);margin-top:4px">Appliqué à l'export uniquement — la prévisualisation reste en haute résolution.</div>
+      </div>
+
+      <div class="field">
         <div class="field-label"><span class="field-name">Nombre d'images cible</span><span class="field-hint">20-30 sweet spot</span></div>
         <div class="range-row">
-          <input type="range" id="f-target_count" min="10" max="100" step="5" value="30" oninput="sync()">
+          <input type="range" id="f-target_count" min="10" max="400" step="5" value="30" oninput="sync()">
           <div class="range-val" id="v-target_count">30</div>
         </div>
       </div>
@@ -1201,7 +1212,8 @@ async function exportDataset() {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       job_id: state.job_id, selected: [...state.selected],
-      dataset_name: datasetName, trigger_word: triggerWord
+      dataset_name: datasetName, trigger_word: triggerWord,
+      output_size: $('f-output_size')?.value || 'original'
     })
   });
   if (!r.ok) { const d = await r.json(); alert('Erreur: ' + d.error); return; }
