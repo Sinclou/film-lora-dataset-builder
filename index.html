@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dataset Builder — LTX-Video LoRA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #060606; --bg1: #0c0c0c; --bg2: #111; --bg3: #181818;
+  --border: #1f1f1f; --amber: #d4a853; --amber2: #f0c870;
+  --green: #4e9e6a; --red: #c0503a; --muted: #444;
+  --text: #e8dcc8; --text2: #999;
+  --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 52px; background: var(--bg1); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 24px;
+}
+.logo { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .15em; color: var(--amber); white-space: nowrap; }
+.logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.logo-sub { color: var(--muted); font-size: 10px; letter-spacing: .1em; }
+.tabs { display: flex; gap: 2px; margin-left: auto; }
+.tab { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; padding: 6px 16px; border-radius: 3px; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--muted); transition: all .15s; }
+.tab.active { border-color: var(--amber); color: var(--amber); background: var(--bg3); }
+.tab:not(.active):hover { color: var(--text2); border-color: var(--border); }
+.status-pill { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; padding: 4px 10px; border-radius: 20px; border: 1px solid; white-space: nowrap; margin-left: 12px; }
+.pill-ok { border-color: var(--green); color: var(--green); }
+.pill-warn { border-color: var(--amber); color: var(--amber); }
+.pill-none { border-color: var(--muted); color: var(--muted); }
+.pill-err { border-color: var(--red); color: var(--red); }
+.btn-key { font-family: var(--mono); font-size: 9px; letter-spacing: .1em; padding: 4px 10px; border-radius: 3px; border: 1px solid var(--muted); background: transparent; color: var(--muted); cursor: pointer; }
+.btn-key:hover { border-color: var(--amber); color: var(--amber); }
+
+main { margin-top: 52px; height: calc(100vh - 52px); overflow: hidden; }
+.panel { display: none; height: 100%; overflow-y: auto; }
+.panel.active { display: block; }
+
+/* GUIDE */
+.guide { max-width: 820px; margin: 0 auto; padding: 48px 40px 80px; }
+.guide h1 { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--amber2); letter-spacing: .04em; margin-bottom: 8px; }
+.guide .subtitle { font-size: 14px; color: var(--text2); margin-bottom: 48px; font-weight: 300; }
+.step-block { display: flex; gap: 28px; margin-bottom: 44px; position: relative; }
+.step-block:not(:last-child)::after { content: ''; position: absolute; left: 18px; top: 48px; bottom: -44px; width: 1px; background: linear-gradient(to bottom, var(--border), transparent); }
+.step-num { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; font-weight: 700; border: 1px solid var(--amber); color: var(--amber); background: var(--bg1); position: relative; z-index: 1; }
+.step-body { flex: 1; padding-top: 4px; }
+.step-body h2 { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--text); margin-bottom: 10px; }
+.step-body p { font-size: 13px; line-height: 1.8; color: var(--text2); margin-bottom: 10px; }
+.step-body p strong { color: var(--text); font-weight: 600; }
+.step-body code { font-family: var(--mono); font-size: 11px; background: var(--bg3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; color: var(--amber); }
+.codeblock { background: var(--bg1); border: 1px solid var(--border); border-radius: 6px; padding: 16px 20px; margin: 12px 0; font-family: var(--mono); font-size: 12px; line-height: 1.9; color: #a8c8a0; overflow-x: auto; }
+.codeblock .cmt { color: var(--muted); }
+.tip-box { background: var(--bg2); border-left: 3px solid var(--amber); border-radius: 0 4px 4px 0; padding: 12px 16px; font-size: 12px; color: var(--text2); line-height: 1.7; margin: 10px 0; }
+.tip-box b { color: var(--amber); }
+.checklist { list-style: none; margin: 10px 0; }
+.checklist li { font-size: 13px; color: var(--text2); line-height: 1.8; padding-left: 20px; position: relative; }
+.checklist li::before { content: '→'; position: absolute; left: 0; color: var(--amber); font-family: var(--mono); }
+
+/* CONFIG */
+.config-wrap { display: flex; height: 100%; }
+.config-sidebar { width: 200px; flex-shrink: 0; background: var(--bg1); border-right: 1px solid var(--border); padding: 28px 0; display: flex; flex-direction: column; }
+.sidebar-section { padding: 0 12px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.sidebar-label { font-family: var(--mono); font-size: 9px; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+.preset-btn { display: block; width: 100%; text-align: left; background: transparent; border: 1px solid var(--border); border-radius: 3px; padding: 6px 10px; margin-bottom: 4px; font-family: var(--mono); font-size: 10px; color: var(--muted); cursor: pointer; transition: all .12s; }
+.preset-btn:hover { border-color: var(--amber); color: var(--amber); }
+.nav-btn { display: block; width: 100%; text-align: left; background: transparent; border: none; border-left: 2px solid transparent; padding: 10px 16px; font-family: var(--mono); font-size: 11px; color: var(--muted); cursor: pointer; letter-spacing: .06em; transition: all .12s; }
+.nav-btn.active { border-color: var(--amber); color: var(--amber); background: var(--bg3); }
+.nav-btn:not(.active):hover { color: var(--text2); }
+.vram-badge { margin: 20px 12px 0; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-family: var(--mono); }
+.vram-label { font-size: 9px; color: var(--muted); letter-spacing: .12em; margin-bottom: 4px; }
+.vram-val { font-size: 13px; color: var(--green); }
+.vram-sub { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+.config-main { flex: 1; padding: 36px 44px; overflow-y: auto; max-width: 620px; }
+.section-title { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; color: var(--amber); text-transform: uppercase; display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.field { margin-bottom: 22px; }
+.field-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+.field-name { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #d0c4a0; }
+.field-hint { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 9px 12px;
+  color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; transition: border-color .15s; appearance: none;
+}
+textarea { resize: vertical; line-height: 1.6; }
+input:focus, select:focus, textarea:focus { border-color: var(--amber); }
+.range-row { display: flex; align-items: center; gap: 12px; }
+input[type=range] { flex: 1; accent-color: var(--amber); cursor: pointer; }
+.range-val { font-family: var(--mono); font-size: 14px; color: var(--amber); min-width: 56px; text-align: right; }
+.toggle-row { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; padding: 6px 0; }
+.toggle-track { width: 40px; height: 22px; border-radius: 11px; border: 1px solid var(--border); position: relative; transition: all .2s; flex-shrink: 0; }
+.toggle-track.on { background: var(--amber); border-color: var(--amber); }
+.toggle-track.off { background: var(--bg3); }
+.toggle-thumb { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; transition: left .2s; }
+.toggle-track.on .toggle-thumb { left: 20px; background: #1a1209; }
+.toggle-track.off .toggle-thumb { left: 2px; background: var(--muted); }
+.toggle-label { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.info-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 14px; margin-bottom: 22px; font-size: 11px; line-height: 1.8; color: var(--muted); font-family: var(--mono); }
+.info-box span { color: var(--amber); }
+
+/* Film dropzone */
+#dropzone {
+  border: 1.5px dashed var(--border); border-radius: 6px; padding: 32px;
+  text-align: center; cursor: pointer; transition: all .15s; background: var(--bg1);
+}
+#dropzone:hover { border-color: var(--amber); }
+#dropzone.has-file { border-color: var(--green); border-style: solid; }
+.dz-icon { font-size: 40px; line-height: 1; margin-bottom: 10px; opacity: .6; }
+.dz-text { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .08em; }
+.dz-sub { font-family: var(--mono); font-size: 9px; color: #333; margin-top: 4px; }
+.dz-file { font-family: var(--mono); font-size: 11px; color: var(--green); margin-top: 10px; word-break: break-all; }
+
+/* Categories */
+.cat-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.cat-input { flex: 1; }
+.cat-rm { padding: 0 12px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); cursor: pointer; font-family: var(--mono); font-size: 12px; }
+.cat-rm:hover { border-color: var(--red); color: var(--red); }
+.cat-add { width: 100%; padding: 8px; background: transparent; border: 1px dashed var(--border); border-radius: 4px; color: var(--muted); font-family: var(--mono); font-size: 10px; cursor: pointer; text-align: center; }
+.cat-add:hover { border-color: var(--amber); color: var(--amber); }
+.preset-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { padding: 5px 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--text2); font-family: var(--mono); font-size: 9px; cursor: pointer; letter-spacing: .05em; }
+.chip:hover { border-color: var(--amber); color: var(--amber); }
+
+/* Summary right */
+.config-right { width: 240px; flex-shrink: 0; background: var(--bg1); border-left: 1px solid var(--border); padding: 28px 18px; display: flex; flex-direction: column; }
+.summary-label { font-family: var(--mono); font-size: 9px; letter-spacing: .15em; color: var(--muted); margin-bottom: 14px; }
+.summary-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #141414; font-family: var(--mono); gap: 8px; }
+.summary-key { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.summary-val { font-size: 11px; color: var(--amber); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.action-area { margin-top: auto; padding-top: 20px; }
+.btn-primary { width: 100%; padding: 12px; background: var(--amber); border: none; border-radius: 4px; color: #0d0d0d; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .1em; cursor: pointer; transition: background .15s; margin-bottom: 8px; }
+.btn-primary:hover { background: var(--amber2); }
+.btn-primary:disabled { background: var(--muted); cursor: not-allowed; color: #888; }
+.btn-secondary { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text2); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; cursor: pointer; transition: all .15s; margin-bottom: 6px; }
+.btn-secondary:hover { border-color: var(--amber); color: var(--amber); }
+.install-status { padding: 10px; margin-bottom: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-family: var(--mono); font-size: 10px; line-height: 1.7; color: var(--text2); }
+
+/* Terminal / Results */
+.terminal-wrap { display: flex; flex-direction: column; height: 100%; }
+.terminal-bar { background: var(--bg1); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.tbar-title { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.tbar-status { font-family: var(--mono); font-size: 10px; }
+.tbar-status.running { color: var(--amber); }
+.tbar-status.done { color: var(--green); }
+.tbar-status.idle { color: var(--muted); }
+.tbar-status.error { color: var(--red); }
+.spacer { flex: 1; }
+.btn-sm { padding: 5px 14px; border-radius: 3px; cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; border: 1px solid; transition: all .15s; }
+.btn-sm-amber { border-color: var(--amber); color: var(--amber); background: transparent; }
+.btn-sm-amber:hover { background: rgba(212,168,83,.1); }
+.btn-sm-green { border-color: var(--green); color: var(--green); background: transparent; }
+.btn-sm-green:hover { background: rgba(78,158,106,.1); }
+.btn-sm-primary { background: var(--amber); border-color: var(--amber); color: #0d0d0d; font-weight: 700; }
+.btn-sm-primary:hover { background: var(--amber2); }
+
+/* Progress panel */
+#progress-panel { display: none; padding: 20px 24px; background: var(--bg1); border-bottom: 1px solid var(--border); }
+#progress-panel.show { display: block; }
+.pb-msg { font-family: var(--mono); font-size: 11px; color: var(--text); margin-bottom: 10px; }
+.pb-wrap { width: 100%; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+.pb-bar { height: 100%; background: linear-gradient(90deg, var(--amber), var(--amber2)); transition: width .4s; }
+#progress-log { max-height: 130px; overflow-y: auto; font-family: var(--mono); font-size: 10px; line-height: 1.8; color: var(--muted); background: #020202; padding: 10px 14px; border-radius: 4px; border: 1px solid var(--border); }
+.log-stage { color: var(--amber); font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: .1em; margin-right: 8px; }
+
+/* Grid results */
+.terminal-body { flex: 1; background: var(--bg2); overflow-y: auto; padding: 0; }
+.grid-hdr { padding: 14px 24px; background: var(--bg1); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; }
+.grid-stats { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.grid-stats b { color: var(--amber); }
+.grid-actions { display: flex; gap: 8px; }
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; padding: 20px 24px; }
+.card { background: var(--bg1); border: 1.5px solid var(--border); border-radius: 6px; overflow: hidden; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; }
+.card.sel { border-color: var(--amber); box-shadow: 0 0 12px rgba(212,168,83,.25); }
+.card-img-wrap { position: relative; background: #000; aspect-ratio: 16/9; overflow: hidden; }
+.card-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-check { position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; background: rgba(0,0,0,.7); border: 1.5px solid rgba(255,255,255,.4); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 14px; color: transparent; }
+.card.sel .card-check { background: var(--amber); border-color: var(--amber); color: #0d0d0d; }
+.card-score { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.75); padding: 2px 6px; border-radius: 3px; font-family: var(--mono); font-size: 9px; color: var(--amber); }
+.card-time { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,.75); padding: 2px 6px; border-radius: 3px; font-family: var(--mono); font-size: 9px; color: var(--text2); }
+.card-body { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.card-caption { font-family: var(--mono); font-size: 10px; line-height: 1.5; color: var(--text); min-height: 50px; max-height: 90px; overflow-y: auto; }
+.card-caption.empty { color: var(--muted); font-style: italic; }
+.card-actions { display: flex; gap: 6px; margin-top: auto; }
+.ca-btn { flex: 1; padding: 5px; background: transparent; border: 1px solid var(--border); border-radius: 3px; color: var(--muted); font-family: var(--mono); font-size: 9px; cursor: pointer; }
+.ca-btn:hover { border-color: var(--amber); color: var(--amber); }
+.welcome-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; color: var(--muted); font-family: var(--mono); }
+.welcome-state .big { font-size: 56px; margin-bottom: 20px; opacity: .35; }
+.welcome-state .t { font-size: 13px; letter-spacing: .1em; color: var(--text); margin-bottom: 12px; }
+.welcome-state .d { font-size: 11px; line-height: 1.8; max-width: 500px; }
+
+/* Edit modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 500; display: none; align-items: center; justify-content: center; }
+.overlay.show { display: flex; }
+.modal { background: var(--bg1); border: 1px solid var(--border); border-radius: 8px; width: 680px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
+.mhd { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.mt { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--amber); letter-spacing: .1em; }
+.mx { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; }
+.mbody { padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+#edit-img { width: 100%; border-radius: 4px; background: #000; max-height: 360px; object-fit: contain; }
+#edit-ta { width: 100%; height: 120px; resize: vertical; }
+.mft { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+
+/* Sub-tabs source */
+.src-tab { padding: 8px 14px; background: transparent; border: none; border-bottom: 2px solid transparent; font-family: var(--mono); font-size: 10px; color: var(--muted); cursor: pointer; letter-spacing: .06em; transition: all .15s; }
+.src-tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+.src-tab:not(.active):hover { color: var(--text2); }
+
+/* Host cards */
+.host-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 6px; cursor: pointer; transition: all .15s; font-family: var(--mono); }
+.host-card:hover { border-color: var(--amber); }
+.host-card.selected { border-color: var(--amber); background: rgba(212,168,83,.06); }
+.host-card.offline { opacity: 0.5; cursor: not-allowed; }
+.host-card .h-icon { font-size: 18px; flex-shrink: 0; }
+.host-card .h-body { flex: 1; min-width: 0; }
+.host-card .h-label { font-size: 11px; color: var(--text); font-weight: 600; }
+.host-card .h-meta { font-size: 9px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.host-card .h-status { font-size: 9px; padding: 2px 7px; border-radius: 10px; border: 1px solid; flex-shrink: 0; }
+.h-status.up { border-color: var(--green); color: var(--green); }
+.h-status.down { border-color: var(--red); color: var(--red); }
+
+/* Breadcrumb + browser */
+.breadcrumb { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px; font-family: var(--mono); font-size: 10px; }
+.bc-item { padding: 2px 6px; border-radius: 3px; cursor: pointer; color: var(--amber); }
+.bc-item:hover { background: rgba(212,168,83,.1); }
+.bc-sep { color: var(--muted); align-self: center; }
+.file-browser { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; max-height: 360px; overflow-y: auto; font-family: var(--mono); font-size: 11px; }
+.fb-item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer; border-bottom: 1px solid #141414; transition: background .1s; }
+.fb-item:hover { background: var(--bg3); }
+.fb-item.video:hover { background: rgba(212,168,83,.08); }
+.fb-icon { width: 18px; flex-shrink: 0; }
+.fb-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.fb-item.video .fb-name { color: var(--amber); }
+.fb-size { font-size: 9px; color: var(--muted); flex-shrink: 0; }
+.fb-empty { padding: 20px; text-align: center; color: var(--muted); font-size: 10px; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    DATASET BUILDER
+    <span class="logo-sub">FILM MODE · LOCAL</span>
+  </div>
+  <div class="tabs">
+    <button class="tab" onclick="goTab('guide',this)">① GUIDE</button>
+    <button class="tab active" onclick="goTab('config',this)">② CONFIG</button>
+    <button class="tab" onclick="goTab('terminal',this)">③ RÉSULTATS</button>
+  </div>
+  <div id="gpu-pill" class="status-pill pill-none">GPU ···</div>
+  <div id="ff-pill" class="status-pill pill-none">ffmpeg ···</div>
+  <button class="btn-key" onclick="unloadModels()" title="Libérer la VRAM occupée par les modèles">⏏ VRAM</button>
+</header>
+
+<main>
+
+<!-- GUIDE -->
+<div id="panel-guide" class="panel">
+<div class="guide">
+  <h1>Dataset Builder — Film Mode</h1>
+  <p class="subtitle">Pipeline 100% local pour créer des datasets LoRA de style depuis des films</p>
+
+  <div class="tip-box" style="border-left-color: var(--green)">
+    <b style="color:var(--green)">✓ Pipeline 100% local — zéro API, zéro cloud</b><br>
+    PySceneDetect détecte les scènes · CLIP filtre par catégorie · JoyCaption écrit les captions training.<br>
+    Tout sur ta RTX 3090. ~5-10 min pour un film de 90 min.
+  </div>
+
+  <div class="step-block">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h2>CHOISIR UN FILM SOURCE</h2>
+      <p>Glisse un film dans la zone de la <strong>section ② Config</strong>.</p>
+      <ul class="checklist">
+        <li>Format : MP4, MKV, MOV…</li>
+        <li>Idéal : <strong>≥ 30 min</strong>, <strong>≥ 720p</strong>, style visuel cohérent</li>
+        <li>Bons candidats : films d'auteurs (Refn, Wong Kar-wai, Lynch, Tarkovski, Villeneuve)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h2>DÉFINIR LE NOMBRE D'IMAGES CIBLE</h2>
+      <p>Pour un LoRA de style : <strong>20-30 images</strong> = sweet spot. Plus n'est PAS mieux.</p>
+      <div class="tip-box"><b>Règle d'or :</b> 25 images parfaitement représentatives &gt; 100 images médiocres</div>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h2>CATÉGORIES CLIP — L'ÉTAPE CLÉ</h2>
+      <p>C'est ici que tu diriges CLIP vers les bonnes scènes du film. <strong>En anglais</strong>, 4-8 mots par catégorie.</p>
+      <div class="codeblock"><span class="cmt"># Stratégie recommandée — variété équilibrée</span>
+atmospheric street scene
+close-up of a face
+wide landscape shot
+interior scene with mood lighting
+two people in conversation</div>
+      <div class="tip-box"><b>Presets disponibles :</b> rue · portrait · paysage · intérieur · néon · dialogue · action · atmosphère</div>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h2>LANCER L'ANALYSE</h2>
+      <p>Active les filtres qualité (anti-flou, anti-trop-sombre), coche "Captionner immédiatement", puis <strong>▶ ANALYSER LE FILM</strong>.</p>
+      <ul class="checklist">
+        <li><strong>~5-7 min</strong> pour un film de 90 min sur RTX 3090</li>
+        <li>Premier run : ~15 GB de modèles HF téléchargés (une seule fois)</li>
+        <li>Si ComfyUI tourne en parallèle : ferme-le ou clique <strong>⏏ VRAM</strong> en haut</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h2>TRIAGE ET EXPORT</h2>
+      <p>Une grille s'affiche dans <strong>③ Résultats</strong> avec les frames triées par score CLIP. Tu coches/décoches, édites les captions, puis <strong>▶ EXPORT</strong>.</p>
+      <div class="codeblock"><span class="cmt"># Ajouter un trigger word à tous les .txt après export</span>
+cd dataset_extracted/
+for f in *.txt; do sed -i '1s/^/mon_style, /' "$f"; done</div>
+      <div class="tip-box"><b>Étape suivante :</b> place le dataset dans <code>~/Outils/lora-datasets/</code> et lance le <strong>LoRA Trainer UI</strong> pour entraîner ton LoRA.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- CONFIG -->
+<div id="panel-config" class="panel active">
+<div class="config-wrap">
+
+  <div class="config-sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Presets catégories</div>
+      <button class="preset-btn" onclick="addPreset(['atmospheric street scene at night','crowded street'])">+ rue</button>
+      <button class="preset-btn" onclick="addPreset(['close-up of a face','portrait of a person'])">+ portrait</button>
+      <button class="preset-btn" onclick="addPreset(['wide landscape','epic vista'])">+ paysage</button>
+      <button class="preset-btn" onclick="addPreset(['interior scene','indoor room'])">+ intérieur</button>
+      <button class="preset-btn" onclick="addPreset(['neon lights','colorful lighting'])">+ néon</button>
+      <button class="preset-btn" onclick="addPreset(['two people talking','conversation scene'])">+ dialogue</button>
+      <button class="preset-btn" onclick="addPreset(['action scene','dynamic motion'])">+ action</button>
+      <button class="preset-btn" onclick="addPreset(['atmospheric mood','cinematic lighting'])">+ atmosphère</button>
+    </div>
+    <button class="nav-btn active" id="nav-0" onclick="goSection(0,this)">Film source</button>
+    <button class="nav-btn" id="nav-1" onclick="goSection(1,this)">Cible</button>
+    <button class="nav-btn" id="nav-2" onclick="goSection(2,this)">Catégories</button>
+    <button class="nav-btn" id="nav-3" onclick="goSection(3,this)">Filtres</button>
+    <div class="vram-badge">
+      <div class="vram-label">PIPELINE</div>
+      <div class="vram-val" id="pipeline-val">PySceneDetect</div>
+      <div class="vram-sub">+ CLIP + JoyCaption</div>
+    </div>
+  </div>
+
+  <div class="config-main">
+
+    <!-- Section 0: Film -->
+    <div class="config-section" id="section-0">
+      <div class="section-title">Film source</div>
+
+      <!-- Sub-tabs : Local / Distant -->
+      <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border)">
+        <button class="src-tab active" id="src-tab-local" onclick="switchSrcTab('local')">📁 Local (upload)</button>
+        <button class="src-tab" id="src-tab-remote" onclick="switchSrcTab('remote')">🌐 Distant (Mac Pro / Mac Studio)</button>
+      </div>
+
+      <!-- LOCAL TAB -->
+      <div id="src-local" class="src-pane">
+        <div class="field">
+          <div id="dropzone" onclick="document.getElementById('finput').click()" ondragover="event.preventDefault()" ondrop="onDrop(event)">
+            <div class="dz-icon">🎬</div>
+            <div class="dz-text">Glisse un film ici</div>
+            <div class="dz-sub">ou clique pour choisir · MP4, MKV, MOV…</div>
+            <div class="dz-file" id="dz-file"></div>
+          </div>
+          <input type="file" id="finput" accept="video/*" style="display:none" onchange="onFile(event)">
+        </div>
+      </div>
+
+      <!-- REMOTE TAB -->
+      <div id="src-remote" class="src-pane" style="display:none">
+        <div class="field">
+          <div class="field-label"><span class="field-name">Machine</span><span class="field-hint" id="sshfs-hint">vérification…</span></div>
+          <div id="host-list"></div>
+        </div>
+        <div class="field" id="browse-field" style="display:none">
+          <div class="field-label"><span class="field-name">Navigation</span><span class="field-hint" id="browse-status"></span></div>
+          <div id="breadcrumb" class="breadcrumb"></div>
+          <div id="file-browser" class="file-browser"></div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        Idéal : film de <span>≥ 30 min</span>, <span>≥ 720p</span>, au style cohérent du début à la fin.<br>
+        Bons candidats : Refn, Wong Kar-wai, Lynch, Tarkovski, Villeneuve, Tarantino…
+      </div>
+    </div>
+
+    <!-- Section 1: Cible -->
+    <div class="config-section" id="section-1" style="display:none">
+      <div class="section-title">Cible & nommage</div>
+
+      <div class="field">
+        <div class="field-label"><span class="field-name">Nom du dataset</span><span class="field-hint">préfixe des fichiers</span></div>
+        <input type="text" id="f-dataset_name" value="" placeholder="auto (depuis le nom du film)" oninput="sync()">
+        <div class="field-hint" style="margin-top:4px">
+          → Fichiers de sortie : <code style="color:var(--amber)" id="preview-files">NomDataset_000.jpg + NomDataset_000.txt</code>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span class="field-name">Trigger word</span><span class="field-hint">mot d'invocation du LoRA</span></div>
+        <input type="text" id="f-trigger_word" value="" placeholder="ex: alien79_style (optionnel)" oninput="sync()">
+        <div class="field-hint" style="margin-top:4px">
+          → Ajouté en tête de chaque caption : <code style="color:var(--amber)" id="preview-caption">[caption JoyCaption]</code>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span class="field-name">Nombre d'images cible</span><span class="field-hint">20-30 sweet spot</span></div>
+        <div class="range-row">
+          <input type="range" id="f-target_count" min="10" max="100" step="5" value="30" oninput="sync()">
+          <div class="range-val" id="v-target_count">30</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:12px">
+        <div class="field-label"><span class="field-name">Frames par scène</span><span class="field-hint">panel de frames / scène</span></div>
+        <select id="f-frames_per_scene" style="width:100%;padding:6px 8px;background:var(--bg2,#1e1e2e);color:var(--fg,#cdd6f4);border:1px solid var(--border,#45475a);border-radius:6px;cursor:pointer;font-size:13px">
+          <option value="1">1 — rapide (centre de scène)</option>
+          <option value="2">2 — début + fin</option>
+          <option value="3" selected>3 — début / milieu / fin</option>
+          <option value="5">5 — panel complet</option>
+          <option value="10">10 — très dense</option>
+        </select>
+        <div style="font-size:10px;color:var(--muted,#6c7086);margin-top:4px">Plus de frames = meilleur panel mais analyse plus longue.</div>
+      </div>
+
+      <div class="info-box">
+        <span>15-25</span> → minimum viable pour un style<br>
+        <span>25-40</span> → recommandé (équilibre variété/cohérence) ★<br>
+        <span>40-80</span> → style très subtil ou multi-aspects
+      </div>
+    </div>
+
+    <!-- Section 2: Catégories -->
+    <div class="config-section" id="section-2" style="display:none">
+      <div class="section-title">Catégories CLIP</div>
+      <div class="info-box">
+        Décris en <span>anglais</span> les types de scènes à privilégier (4-8 mots).<br>
+        CLIP scorera chaque frame selon ces critères. Sans catégorie = sampling temporel uniforme.<br>
+        Utilise les <span>presets de la sidebar gauche</span> pour ajouter rapidement des catégories.
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-name">Catégories actives</span></div>
+        <div id="cat-list"></div>
+        <button class="cat-add" onclick="addCategory()" style="margin-top:6px">+ Ajouter une catégorie custom</button>
+      </div>
+    </div>
+
+    <!-- Section 3: Filtres -->
+    <div class="config-section" id="section-3" style="display:none">
+      <div class="section-title">Filtres qualité</div>
+      <div class="field">
+        <div class="toggle-row" onclick="toggleFlag('avoid_blur')">
+          <div class="toggle-track on" id="tg-avoid_blur"><div class="toggle-thumb"></div></div>
+          <span class="toggle-label">Éviter les frames floues</span>
+        </div>
+      </div>
+      <div class="field">
+        <div class="toggle-row" onclick="toggleFlag('avoid_dark')">
+          <div class="toggle-track on" id="tg-avoid_dark"><div class="toggle-thumb"></div></div>
+          <span class="toggle-label">Éviter trop sombres / trop claires</span>
+        </div>
+      </div>
+      <div class="field">
+        <div class="toggle-row" onclick="toggleFlag('caption_now')">
+          <div class="toggle-track on" id="tg-caption_now"><div class="toggle-thumb"></div></div>
+          <span class="toggle-label">Captionner immédiatement (JoyCaption)</span>
+        </div>
+      </div>
+      <div class="info-box">
+        Si désactivé, le captioning sera fait à la demande après le triage.<br>
+        Recommandé : tout activé pour un workflow direct.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right summary -->
+  <div class="config-right">
+    <div class="summary-label">RÉSUMÉ ANALYSE</div>
+    <div class="summary-row"><span class="summary-key">Film</span><span class="summary-val" id="s-film" style="color:var(--red)">aucun</span></div>
+    <div class="summary-row"><span class="summary-key">Nom dataset</span><span class="summary-val" id="s-dataset-name">auto</span></div>
+    <div class="summary-row"><span class="summary-key">Trigger</span><span class="summary-val" id="s-trigger">—</span></div>
+    <div class="summary-row"><span class="summary-key">Images cible</span><span class="summary-val" id="s-target">30</span></div>
+    <div class="summary-row"><span class="summary-key">Catégories</span><span class="summary-val" id="s-cats">0</span></div>
+    <div class="summary-row"><span class="summary-key">Filtre flou</span><span class="summary-val" id="s-blur">✓</span></div>
+    <div class="summary-row"><span class="summary-key">Filtre lumière</span><span class="summary-val" id="s-dark">✓</span></div>
+    <div class="summary-row"><span class="summary-key">Auto-caption</span><span class="summary-val" id="s-cap">✓</span></div>
+    <div class="summary-row"><span class="summary-key">Temps estimé</span><span class="summary-val" id="s-time">~5-10 min</span></div>
+
+    <div class="action-area">
+      <div class="install-status" id="install-status">Prêt à analyser un film</div>
+      <button class="btn-primary" id="btn-analyze" onclick="startAnalysis()" disabled>▶ ANALYSER LE FILM</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- TERMINAL / RÉSULTATS -->
+<div id="panel-terminal" class="panel">
+<div class="terminal-wrap">
+  <div class="terminal-bar">
+    <span class="tbar-title">RÉSULTATS</span>
+    <span class="tbar-status idle" id="term-status">En attente</span>
+    <div class="spacer"></div>
+    <button class="btn-sm btn-sm-amber" id="btn-select-all" onclick="selectAll()" style="display:none">Tout</button>
+    <button class="btn-sm btn-sm-amber" id="btn-select-top" onclick="selectTop()" style="display:none">Top N</button>
+    <button class="btn-sm btn-sm-amber" id="btn-select-none" onclick="selectNone()" style="display:none">Rien</button>
+    <button class="btn-sm btn-sm-green" id="btn-caption-batch" onclick="captionSelected()" style="display:none">🤖 Captionner sélection</button>
+    <button class="btn-sm btn-sm-amber" id="btn-export-lm" onclick="exportToLoraMaker()" style="display:none" title="Exporte directement dans RENDERMAT/LORA MAKER/datasets">💾 → LORA MAKER</button>
+    <button class="btn-sm btn-sm-primary" id="btn-export" onclick="exportDataset()" style="display:none">▶ EXPORT ZIP</button>
+  </div>
+
+  <div id="progress-panel">
+    <div class="pb-msg" id="pb-msg">Préparation…</div>
+    <div class="pb-wrap"><div class="pb-bar" id="pb-bar" style="width:0%"></div></div>
+    <div id="progress-log"></div>
+  </div>
+
+  <div class="terminal-body" id="terminal-body">
+    <div class="welcome-state">
+      <div class="big">🎞</div>
+      <div class="t">EN ATTENTE D'ANALYSE</div>
+      <div class="d">
+        Va dans <b style="color:var(--amber)">② Config</b><br>
+        glisse un film, choisis des catégories CLIP,<br>
+        puis lance <b style="color:var(--amber)">▶ ANALYSER LE FILM</b>.<br><br>
+        Les résultats s'afficheront ici en grille.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Edit modal -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal">
+    <div class="mhd">
+      <span class="mt">ÉDITION CAPTION</span>
+      <button class="mx" onclick="closeEdit()">✕</button>
+    </div>
+    <div class="mbody">
+      <img id="edit-img" src="">
+      <textarea id="edit-ta" placeholder="Caption…"></textarea>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="edit-info"></div>
+    </div>
+    <div class="mft">
+      <button class="btn-secondary" style="width:auto;padding:8px 14px" onclick="recaptionFrame()">🔄 Re-caption JoyCaption</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" style="width:auto;padding:8px 14px" onclick="closeEdit()">Annuler</button>
+        <button class="btn-primary" style="width:auto;padding:10px 18px;margin:0" onclick="saveEdit()">✓ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const state = {
+  job_id: null,
+  filename: null,
+  categories: [],
+  flags: { avoid_blur: true, avoid_dark: true, caption_now: true },
+  frames: [],
+  selected: new Set(),
+  pollTimer: null,
+  editIdx: null,
+};
+
+function $(id) { return document.getElementById(id); }
+
+// ── Tabs / nav ──
+function goTab(t, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  $('panel-' + t).classList.add('active');
+  btn.classList.add('active');
+}
+function goSection(n, btn) {
+  document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none');
+  $('section-' + n).style.display = 'block';
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Status ──
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    if (d.has_gpu) {
+      $('gpu-pill').className = 'status-pill pill-ok';
+      $('gpu-pill').textContent = d.gpu;
+    } else {
+      $('gpu-pill').className = 'status-pill pill-err';
+      $('gpu-pill').textContent = 'GPU ✗';
+    }
+    $('ff-pill').className = 'status-pill ' + (d.ffmpeg ? 'pill-ok' : 'pill-err');
+    $('ff-pill').textContent = d.ffmpeg ? 'ffmpeg ✓' : 'ffmpeg ✗';
+  } catch (e) {}
+}
+setInterval(checkStatus, 6000); checkStatus();
+
+// ── Source tabs (local / remote) ──
+function switchSrcTab(which) {
+  document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.src-pane').forEach(p => p.style.display = 'none');
+  $('src-tab-' + which).classList.add('active');
+  $('src-' + which).style.display = 'block';
+  if (which === 'remote') loadHosts();
+}
+
+// ── Remote hosts ──
+async function loadHosts() {
+  try {
+    const r = await fetch('/api/hosts');
+    const d = await r.json();
+    $('sshfs-hint').textContent = d.sshfs_available ? 'sshfs ✓' : '⚠ sshfs absent';
+    $('sshfs-hint').style.color = d.sshfs_available ? 'var(--green)' : 'var(--amber)';
+    const list = $('host-list');
+    list.innerHTML = '';
+    for (const h of (d.hosts || [])) {
+      const card = document.createElement('div');
+      card.className = 'host-card' + (h.alive ? '' : ' offline');
+      const meta = h.type === 'local' ? 'local' : (h.user + '@' + h.host);
+      card.innerHTML = '<div class="h-icon">' +
+        (h.type === 'local' ? '💻' : (h.type === 'ssh' ? '🌐' : '📁')) + '</div>' +
+        '<div class="h-body"><div class="h-label">' + escapeHtml(h.label) + '</div>' +
+        '<div class="h-meta">' + escapeHtml(meta) + '</div></div>' +
+        '<div class="h-status ' + (h.alive ? 'up' : 'down') + '">' + (h.alive ? 'online' : 'offline') + '</div>';
+      if (h.alive) card.onclick = () => selectHost(h);
+      list.appendChild(card);
+    }
+  } catch (e) {
+    $('host-list').innerHTML = '<div style="color:var(--red);font-family:var(--mono);font-size:11px;padding:10px">Erreur: ' + e.message + '</div>';
+  }
+}
+
+let currentHost = null;
+let currentPath = null;
+function selectHost(h) {
+  currentHost = h;
+  document.querySelectorAll('.host-card').forEach(c => c.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  $('browse-field').style.display = 'block';
+  // Affiche les roots
+  const roots = h.roots || [];
+  if (roots.length === 1) browsePath(roots[0].path);
+  else showRoots(roots);
+}
+
+function showRoots(roots) {
+  $('breadcrumb').innerHTML = '<span class="bc-item" onclick="selectHost(currentHost)">⌂ racines</span>';
+  const list = $('file-browser');
+  list.innerHTML = '';
+  if (!roots.length) { list.innerHTML = '<div class="fb-empty">Aucune racine configurée</div>'; return; }
+  for (const r of roots) {
+    const it = document.createElement('div');
+    it.className = 'fb-item';
+    it.onclick = () => browsePath(r.path);
+    it.innerHTML = '<div class="fb-icon">📁</div><div class="fb-name">' + escapeHtml(r.label || r.path) + '</div><div class="fb-size">' + escapeHtml(r.path) + '</div>';
+    list.appendChild(it);
+  }
+  $('browse-status').textContent = roots.length + ' racine(s)';
+}
+
+async function browsePath(path) {
+  if (!currentHost) return;
+  currentPath = path;
+  $('browse-status').textContent = 'Chargement…';
+  $('file-browser').innerHTML = '<div class="fb-empty">⏳ Chargement…</div>';
+  try {
+    const r = await fetch('/api/hosts/' + currentHost.name + '/browse?path=' + encodeURIComponent(path));
+    const d = await r.json();
+    if (d.error) { $('file-browser').innerHTML = '<div class="fb-empty" style="color:var(--red)">✗ ' + escapeHtml(d.error) + '</div>'; $('browse-status').textContent = 'Erreur'; return; }
+    renderBrowse(d);
+  } catch (e) {
+    $('file-browser').innerHTML = '<div class="fb-empty" style="color:var(--red)">Erreur: ' + e.message + '</div>';
+  }
+}
+
+function renderBrowse(d) {
+  const list = $('file-browser');
+  list.innerHTML = '';
+  // Breadcrumb
+  const parts = (d.path || '').split('/').filter(Boolean);
+  let crumb = '<span class="bc-item" onclick="selectHost(currentHost)">⌂ ' + escapeHtml(currentHost.name) + '</span>';
+  let acc = '';
+  for (let i = 0; i < parts.length; i++) {
+    acc += '/' + parts[i];
+    crumb += '<span class="bc-sep">/</span><span class="bc-item" onclick="browsePath(' + JSON.stringify(acc).replace(/"/g, '&quot;') + ')">' + escapeHtml(parts[i]) + '</span>';
+  }
+  $('breadcrumb').innerHTML = crumb;
+
+  // Parent
+  if (parts.length > 1) {
+    const parent = '/' + parts.slice(0, -1).join('/');
+    const it = document.createElement('div');
+    it.className = 'fb-item';
+    it.onclick = () => browsePath(parent);
+    it.innerHTML = '<div class="fb-icon">⯈</div><div class="fb-name">.. (dossier parent)</div>';
+    list.appendChild(it);
+  }
+
+  for (const f of (d.folders || [])) {
+    const it = document.createElement('div');
+    it.className = 'fb-item';
+    it.onclick = () => browsePath(f.path);
+    it.innerHTML = '<div class="fb-icon">📁</div><div class="fb-name">' + escapeHtml(f.name) + '</div>';
+    list.appendChild(it);
+  }
+  for (const v of (d.videos || [])) {
+    const it = document.createElement('div');
+    it.className = 'fb-item video';
+    it.onclick = () => selectRemoteFile(v);
+    const sizeMB = (v.size / (1024*1024)).toFixed(0);
+    it.innerHTML = '<div class="fb-icon">🎬</div><div class="fb-name">' + escapeHtml(v.name) + '</div><div class="fb-size">' + sizeMB + ' MB</div>';
+    list.appendChild(it);
+  }
+  if (!d.folders.length && !d.videos.length) {
+    list.innerHTML += '<div class="fb-empty">Vide</div>';
+  }
+  $('browse-status').textContent = d.folders.length + ' dossier(s), ' + d.videos.length + ' vidéo(s)';
+}
+
+async function selectRemoteFile(v) {
+  $('browse-status').textContent = '⏳ Préparation…';
+  try {
+    const r = await fetch('/api/select-remote-file', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host: currentHost.name, path: v.path })
+    });
+    const d = await r.json();
+    if (d.error) { alert('Erreur: ' + d.error); $('browse-status').textContent = 'Erreur'; return; }
+    state.job_id = d.job_id;
+    state.filename = d.filename;
+    $('browse-status').innerHTML = '✓ <span style="color:var(--green)">' + escapeHtml(d.filename) + '</span>';
+    // Ferme/néglige la dropzone, affiche le choix
+    sync();
+  } catch (e) { alert('Erreur: ' + e.message); }
+}
+
+// ── File upload ──
+function onFile(e) { if (e.target.files[0]) uploadFile(e.target.files[0]); }
+function onDrop(e) {
+  e.preventDefault();
+  const f = [...e.dataTransfer.files].find(x => x.type.startsWith('video/'));
+  if (f) uploadFile(f);
+}
+async function uploadFile(file) {
+  $('dz-file').textContent = '⏳ Upload…';
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch('/api/upload-video', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    state.job_id = d.job_id;
+    state.filename = d.filename;
+    $('dz-file').textContent = '✓ ' + d.filename;
+    $('dropzone').classList.add('has-file');
+    sync();
+  } catch (e) {
+    $('dz-file').textContent = '✗ ' + e.message;
+  }
+}
+
+// ── Categories ──
+function renderCats() {
+  const list = $('cat-list');
+  list.innerHTML = '';
+  if (state.categories.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted);font-family:var(--mono);font-size:11px;padding:10px 0;text-align:center">Aucune catégorie — utilise les presets de la sidebar</div>';
+    return;
+  }
+  state.categories.forEach((cat, i) => {
+    const row = document.createElement('div');
+    row.className = 'cat-row';
+    row.innerHTML = `<input type="text" class="cat-input" value="${escapeAttr(cat)}" onchange="updateCat(${i}, this.value)"><button class="cat-rm" onclick="rmCat(${i})">✕</button>`;
+    list.appendChild(row);
+  });
+}
+function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+function addCategory() { state.categories.push(''); renderCats(); sync(); setTimeout(() => { const inputs = document.querySelectorAll('.cat-input'); if (inputs.length) inputs[inputs.length-1].focus(); }, 10); }
+function rmCat(i) { state.categories.splice(i, 1); renderCats(); sync(); }
+function updateCat(i, v) { state.categories[i] = v; sync(); }
+function addPreset(prompts) {
+  for (const p of prompts) if (!state.categories.includes(p)) state.categories.push(p);
+  renderCats(); sync();
+  goSection(2, $('nav-2'));
+}
+
+// ── Flags ──
+function toggleFlag(k) {
+  state.flags[k] = !state.flags[k];
+  const tg = $('tg-' + k);
+  tg.className = state.flags[k] ? 'toggle-track on' : 'toggle-track off';
+  sync();
+}
+
+// ── Sync ──
+function sanitizeName(s) {
+  return (s || '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
+}
+function defaultDatasetName() {
+  if (!state.filename) return '';
+  return sanitizeName(state.filename.replace(/\.[^.]+$/, '').slice(0, 40));
+}
+function effectiveDatasetName() {
+  const manual = ($('f-dataset_name')?.value || '').trim();
+  return sanitizeName(manual) || defaultDatasetName() || 'dataset';
+}
+
+function sync() {
+  $('v-target_count').textContent = $('f-target_count').value;
+  $('s-film').textContent = state.filename || 'aucun';
+  $('s-film').style.color = state.filename ? 'var(--amber)' : 'var(--red)';
+  $('s-target').textContent = $('f-target_count').value;
+
+  // Nom dataset + trigger word preview
+  const dsName = effectiveDatasetName();
+  const triggerWord = ($('f-trigger_word')?.value || '').trim();
+  const sDsName = $('s-dataset-name');
+  if (sDsName) {
+    sDsName.textContent = dsName;
+    sDsName.style.color = dsName !== 'dataset' ? 'var(--amber)' : 'var(--muted)';
+  }
+  const sTrigger = $('s-trigger');
+  if (sTrigger) {
+    sTrigger.textContent = triggerWord || '—';
+    sTrigger.style.color = triggerWord ? 'var(--amber)' : 'var(--muted)';
+  }
+  const previewFiles = $('preview-files');
+  if (previewFiles) previewFiles.textContent = dsName + '_000.jpg + ' + dsName + '_000.txt';
+  const previewCaption = $('preview-caption');
+  if (previewCaption) {
+    if (triggerWord) previewCaption.textContent = triggerWord + ', [caption JoyCaption]';
+    else previewCaption.textContent = '[caption JoyCaption] (sans trigger)';
+  }
+  $('s-cats').textContent = state.categories.filter(c => c.trim()).length;
+  $('s-blur').textContent = state.flags.avoid_blur ? '✓' : '✗';
+  $('s-dark').textContent = state.flags.avoid_dark ? '✓' : '✗';
+  $('s-cap').textContent = state.flags.caption_now ? '✓' : '✗';
+  const ready = !!state.filename;
+  $('btn-analyze').disabled = !ready;
+  if (ready) {
+    $('install-status').innerHTML = '✓ Film prêt — clique <b>Analyser</b>';
+    $('install-status').style.color = 'var(--green)';
+  } else {
+    $('install-status').textContent = 'Glisse un film en section 0';
+    $('install-status').style.color = 'var(--muted)';
+  }
+}
+
+// ── Analysis ──
+async function startAnalysis() {
+  if (!state.job_id) return;
+  const cats = state.categories.filter(c => c.trim());
+  const payload = {
+    job_id: state.job_id,
+    target_count: parseInt($('f-target_count').value),
+    categories: cats,
+    quality_filters: { avoid_blur: state.flags.avoid_blur, avoid_dark: state.flags.avoid_dark },
+    caption_now: state.flags.caption_now,
+    frames_per_scene: parseInt($('f-frames_per_scene').value || 1),
+  };
+  $('btn-analyze').disabled = true;
+  goTab('terminal', document.querySelectorAll('.tab')[2]);
+  $('progress-panel').classList.add('show');
+  $('progress-log').innerHTML = '';
+  $('term-status').textContent = 'Analyse en cours…';
+  $('term-status').className = 'tbar-status running';
+  $('terminal-body').innerHTML = '<div class="welcome-state"><div class="big">⏳</div><div class="t">ANALYSE EN COURS</div><div class="d">Cela peut prendre quelques minutes selon la longueur du film. La grille des résultats s\'affichera ici quand ce sera prêt.</div></div>';
+  try {
+    const r = await fetch('/api/analyze', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    pollJob();
+  } catch (e) {
+    alert('Erreur: ' + e.message);
+    $('btn-analyze').disabled = false;
+  }
+}
+
+async function pollJob() {
+  try {
+    const r = await fetch('/api/job/' + state.job_id);
+    const d = await r.json();
+    $('pb-bar').style.width = (d.progress || 0) + '%';
+    $('pb-msg').textContent = '[' + (d.stage || '').toUpperCase() + '] ' + (d.progress || 0) + '%';
+    const logEl = $('progress-log');
+    const lastLogs = (d.log || []).slice(-15);
+    logEl.innerHTML = lastLogs.map(l => '<div><span class="log-stage">' + (l.stage||'') + '</span>' + escapeHtml(l.msg||'') + '</div>').join('');
+    logEl.scrollTop = logEl.scrollHeight;
+    if (d.error) {
+      $('pb-msg').textContent = '✗ ' + d.error;
+      $('term-status').textContent = 'Erreur';
+      $('term-status').className = 'tbar-status error';
+      $('btn-analyze').disabled = false;
+      return;
+    }
+    if (d.done) {
+      state.frames = d.frames || [];
+      const target = parseInt($('f-target_count').value);
+      state.selected = new Set(state.frames.slice(0, target).map(f => f.idx));
+      renderGrid();
+      $('term-status').textContent = '✓ ' + state.frames.length + ' frames';
+      $('term-status').className = 'tbar-status done';
+      $('btn-analyze').disabled = false;
+      $('btn-select-all').style.display = 'inline-block';
+      $('btn-select-top').style.display = 'inline-block';
+      $('btn-select-none').style.display = 'inline-block';
+      $('btn-export').style.display = 'inline-block';
+      $('btn-export-lm').style.display = 'inline-block';
+      updateCaptionBatchBtn();
+      return;
+    }
+    state.pollTimer = setTimeout(pollJob, 1500);
+  } catch (e) {
+    state.pollTimer = setTimeout(pollJob, 3000);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Grid ──
+function renderGrid() {
+  const body = $('terminal-body');
+  body.innerHTML = '';
+  const hdr = document.createElement('div');
+  hdr.className = 'grid-hdr';
+  hdr.innerHTML = '<div class="grid-stats"><b id="sel-cnt">' + state.selected.size + '</b> / ' + state.frames.length + ' sélectionnées · cible : <b>' + $('f-target_count').value + '</b></div>';
+  body.appendChild(hdr);
+  const grid = document.createElement('div');
+  grid.id = 'grid';
+  for (const f of state.frames) {
+    const sel = state.selected.has(f.idx);
+    const card = document.createElement('div');
+    card.className = 'card' + (sel ? ' sel' : '');
+    card.dataset.idx = f.idx;
+    const score = f.clip_score !== undefined ? f.clip_score.toFixed(2) : '';
+    const time = f.timestamp ? Math.floor(f.timestamp/60) + ':' + String(Math.floor(f.timestamp%60)).padStart(2,'0') : '';
+    const cap = (f.caption || '').trim();
+    card.innerHTML =
+      '<div class="card-img-wrap">' +
+        '<img class="card-img" src="/api/frame-image/' + state.job_id + '/' + f.idx + '" loading="lazy">' +
+        '<div class="card-check">✓</div>' +
+        (score ? '<div class="card-score">CLIP ' + score + '</div>' : '') +
+        (time ? '<div class="card-time">' + time + '</div>' : '') +
+      '</div>' +
+      '<div class="card-body">' +
+        '<div class="card-caption ' + (cap ? '' : 'empty') + '">' + (cap ? escapeHtml(cap) : '(pas de caption)') + '</div>' +
+        '<div class="card-actions">' +
+          '<button class="ca-btn" onclick="event.stopPropagation();openEdit(' + f.idx + ')">✎ Éditer</button>' +
+          '<button class="ca-btn" onclick="event.stopPropagation();recaptionFrameIdx(' + f.idx + ')">🔄 Re-cap</button>' +
+        '</div>' +
+      '</div>';
+    card.onclick = () => toggleSelect(f.idx);
+    grid.appendChild(card);
+  }
+  body.appendChild(grid);
+}
+function toggleSelect(idx) {
+  if (state.selected.has(idx)) state.selected.delete(idx);
+  else state.selected.add(idx);
+  const card = document.querySelector('.card[data-idx="' + idx + '"]');
+  if (card) card.classList.toggle('sel');
+  const cnt = $('sel-cnt'); if (cnt) cnt.textContent = state.selected.size;
+  updateCaptionBatchBtn();
+}
+
+function updateCaptionBatchBtn() {
+  const btn = $('btn-caption-batch');
+  if (!btn) return;
+  // Compte combien de frames sélectionnées sont sans caption
+  const needCap = state.frames.filter(f => state.selected.has(f.idx) && !(f.caption || '').trim()).length;
+  if (state.frames.length === 0) {
+    btn.style.display = 'none';
+    return;
+  }
+  btn.style.display = 'inline-block';
+  if (needCap > 0) {
+    btn.textContent = '🤖 Captionner sélection (' + needCap + ')';
+    btn.disabled = false;
+  } else {
+    btn.textContent = '✓ Tout captionné';
+    btn.disabled = true;
+  }
+}
+function selectAll() { state.selected = new Set(state.frames.map(f => f.idx)); renderGrid(); updateCaptionBatchBtn(); }
+function selectNone() { state.selected = new Set(); renderGrid(); updateCaptionBatchBtn(); }
+function selectTop() {
+  const n = parseInt($('f-target_count').value);
+  state.selected = new Set(state.frames.slice(0, n).map(f => f.idx));
+  renderGrid();
+  updateCaptionBatchBtn();
+}
+
+// ── Batch captioning des frames sélectionnées ──
+async function captionSelected() {
+  const indices = [...state.selected];
+  if (indices.length === 0) { alert('Aucune frame sélectionnée'); return; }
+  // Confirmation
+  const needCap = state.frames.filter(f => state.selected.has(f.idx) && !(f.caption || '').trim()).length;
+  if (!confirm('Lancer JoyCaption sur ' + needCap + ' frame(s) ?\n\nDurée estimée : ~' + Math.ceil(needCap * 3 / 60) + ' min\n(JoyCaption sera chargé si pas déjà en mémoire)')) return;
+
+  const btn = $('btn-caption-batch');
+  btn.disabled = true;
+  $('progress-panel').classList.add('show');
+  $('pb-msg').textContent = 'Captioning en cours…';
+  $('pb-bar').style.width = '0%';
+  $('progress-log').innerHTML = '';
+  $('term-status').textContent = 'Captioning…';
+  $('term-status').className = 'tbar-status running';
+
+  try {
+    const r = await fetch('/api/caption-batch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: state.job_id, indices })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    pollCaptioning();
+  } catch (e) {
+    alert('Erreur: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
+async function pollCaptioning() {
+  try {
+    const r = await fetch('/api/caption-status/' + state.job_id);
+    const d = await r.json();
+    if (d.progress !== null && d.progress !== undefined) {
+      $('pb-bar').style.width = d.progress + '%';
+      $('pb-msg').textContent = '[CAPTION] ' + d.progress + '%';
+    }
+    if (d.msg) {
+      const log = $('progress-log');
+      const line = document.createElement('div');
+      line.innerHTML = '<span class="log-stage">caption</span>' + escapeHtml(d.msg);
+      log.appendChild(line);
+      // Limite à ~20 lignes
+      while (log.children.length > 20) log.removeChild(log.firstChild);
+      log.scrollTop = log.scrollHeight;
+    }
+    // Mets à jour les captions dans state.frames
+    if (d.frames) {
+      for (const f of d.frames) {
+        const sf = state.frames.find(x => x.idx === f.idx);
+        if (sf && f.caption && f.caption !== sf.caption) sf.caption = f.caption;
+      }
+    }
+    if (!d.captioning) {
+      renderGrid();
+      $('term-status').textContent = '✓ Captioning terminé';
+      $('term-status').className = 'tbar-status done';
+      updateCaptionBatchBtn();
+      return;
+    }
+    setTimeout(pollCaptioning, 2000);
+  } catch (e) {
+    setTimeout(pollCaptioning, 3000);
+  }
+}
+
+// ── Edit ──
+function openEdit(idx) {
+  const f = state.frames.find(x => x.idx === idx);
+  if (!f) return;
+  state.editIdx = idx;
+  $('edit-img').src = '/api/frame-image/' + state.job_id + '/' + idx;
+  $('edit-ta').value = f.caption || '';
+  $('edit-info').textContent = 'Frame ' + idx + ' · CLIP: ' + (f.clip_score||0).toFixed(3) + ' · Sharpness: ' + (f.sharpness||0).toFixed(0) + ' · Brightness: ' + (f.brightness||0).toFixed(0);
+  $('edit-overlay').classList.add('show');
+}
+function closeEdit() { $('edit-overlay').classList.remove('show'); state.editIdx = null; }
+async function saveEdit() {
+  if (state.editIdx === null) return;
+  const cap = $('edit-ta').value;
+  await fetch('/api/update-caption', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job_id: state.job_id, idx: state.editIdx, caption: cap })
+  });
+  const f = state.frames.find(x => x.idx === state.editIdx);
+  if (f) f.caption = cap;
+  closeEdit(); renderGrid();
+}
+async function recaptionFrame() {
+  if (state.editIdx === null) return;
+  $('edit-ta').value = '⏳ Génération…';
+  try {
+    const r = await fetch('/api/recaption', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: state.job_id, idx: state.editIdx })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    $('edit-ta').value = d.caption;
+  } catch (e) { $('edit-ta').value = '✗ ' + e.message; }
+}
+async function recaptionFrameIdx(idx) {
+  const f = state.frames.find(x => x.idx === idx);
+  if (!f) return;
+  const old = f.caption;
+  f.caption = '⏳…'; renderGrid();
+  try {
+    const r = await fetch('/api/recaption', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: state.job_id, idx })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    f.caption = d.caption;
+  } catch (e) { f.caption = old; alert('Erreur: ' + e.message); }
+  renderGrid();
+}
+
+// ── Export ──
+async function exportToLoraMaker() {
+  if (state.selected.size === 0) { alert('Aucune frame sélectionnée'); return; }
+  // Vérifie le mount
+  let status;
+  try {
+    const r = await fetch('/api/lora-maker-status');
+    status = await r.json();
+  } catch(e) { alert('Erreur: ' + e.message); return; }
+  if (!status.available) {
+    alert('❌ RENDERMAT/LORA MAKER non accessible.\nChemin attendu: ' + status.path);
+    return;
+  }
+  // Récupère le nom du dataset + trigger word déjà saisis dans Config (section 1)
+  let name = effectiveDatasetName();
+  let triggerWord = ($('f-trigger_word')?.value || '').trim();
+  // Si pas saisis dans la config, on demande à la volée
+  if (!name || name === 'dataset') {
+    name = prompt('Nom du dataset :\n(sera créé sous RENDERMAT/LORA MAKER/datasets/)', defaultDatasetName() || 'mon_style');
+    if (!name) return;
+  }
+  if (!triggerWord) {
+    triggerWord = prompt('Trigger word (mot d\'invocation du LoRA) ?\nEx: alien79_style\n\n(laisser vide si pas de trigger)', '') || '';
+  }
+  // Confirm
+  const msg = '→ ' + state.selected.size + ' frame(s)\n→ Dossier : ' + name + '\n→ Trigger : ' + (triggerWord || '(aucun)') + '\n→ ' + status.free_gb + ' GB libres\n\nConfirmer ?';
+  if (!confirm(msg)) return;
+  // POST
+  try {
+    const r = await fetch('/api/export-to-lora-maker', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: state.job_id, selected: [...state.selected],
+        name, trigger_word: triggerWord || ''
+      })
+    });
+    const d = await r.json();
+    if (d.error) { alert('❌ ' + d.error); return; }
+    alert('✅ Dataset exporté !\n\n→ ' + d.written + ' fichiers\n→ ' + d.target + '\n\nTu peux maintenant lancer le LoRA Trainer UI.');
+  } catch(e) {
+    alert('Erreur: ' + e.message);
+  }
+}
+
+async function exportDataset() {
+  if (state.selected.size === 0) { alert('Aucune frame sélectionnée'); return; }
+  const datasetName = effectiveDatasetName();
+  const triggerWord = ($('f-trigger_word')?.value || '').trim();
+  const r = await fetch('/api/export', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: state.job_id, selected: [...state.selected],
+      dataset_name: datasetName, trigger_word: triggerWord
+    })
+  });
+  if (!r.ok) { const d = await r.json(); alert('Erreur: ' + d.error); return; }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = datasetName + '.zip';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// ── VRAM unload ──
+async function unloadModels() {
+  await fetch('/api/unload-models', { method: 'POST' });
+  checkStatus();
+}
+
+// ── Init ──
+renderCats();
+sync();
+</script>
+</body>
+</html>

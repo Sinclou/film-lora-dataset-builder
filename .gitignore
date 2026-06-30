@@ -1,0 +1,7 @@
+__pycache__/
+venv/
+model_cache/
+*.pyc
+/tmp/
+hosts.json
+*.bak

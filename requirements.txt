@@ -1,0 +1,22 @@
+# Dataset Builder v3 — requirements
+# Installe avec : pip install -r requirements.txt
+#
+# PyTorch : installe la version CUDA adaptée à ton système depuis https://pytorch.org/get-started/locally/
+# Exemple CUDA 12.1 :
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+# Exemple CUDA 11.8 :
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu118
+
+# Web server
+flask>=3.1
+
+# Vision / ML
+open-clip-torch>=3.3
+transformers>=4.50
+accelerate>=1.0
+Pillow>=10.0
+numpy>=1.24
+opencv-python>=4.8
+
+# Scene detection
+scenedetect>=0.6
